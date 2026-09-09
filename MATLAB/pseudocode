@@ -1,0 +1,27 @@
+Algorithm: MATLAB Ground Station Telemetry Reception and CCSDS Decoding
+
+1.	Configure serial communication. 
+2.	Continuously monitor the serial port for the start-of-frame marker. 
+3.	Read the received frame length. 
+4.	Read the complete CCSDS frame. 
+5.	Read the receiver-measured RSSI and SNR values. 
+6.	Verify the end-of-frame marker. 
+7.	Verify the minimum frame length. 
+8.	Extract and decode the CCSDS-inspired primary header:
+a.	Version
+b.	Packet Type
+c.	Secondary Header Flag
+d.	APID
+e.	Sequence Counter
+f.	Payload Length
+9.	Verify complete frame reception. 
+10.	Compute the CCSDS CRC-16. 
+11.	Compare the computed CRC with the received CRC. 
+12.	If CRC verification fails, 
+    -	discard the packet. 
+14.	Otherwise, 
+    -	extract the payload from the CCSDS frame. 
+15.	Decode the telemetry fields using regular expression matching. 
+16.	Convert the extracted telemetry strings into numerical values. 
+17.	Display the decoded telemetry together with the measured RSSI and SNR. 
+18.	Repeat.
