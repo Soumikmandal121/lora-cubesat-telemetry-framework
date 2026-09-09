@@ -1,0 +1,18 @@
+Algorithm: ESP32 Receiver Packet Forwarding
+
+1.	Initialize the LoRa transceiver. 
+2.	Configure the serial communication interface. 
+3.	Continuously monitor for incoming LoRa packets. 
+4.	If a packet is received, 
+o	read the complete CCSDS frame. 
+5.	Measure the received packet RSSI. 
+6.	Measure the received packet SNR. 
+7.	Construct the serial frame consisting of: 
+    - Start marker 
+    - Frame length 
+    - CCSDS frame 
+    - RSSI 
+    - SNR
+    - End marker
+8.	Transmit the serial frame to MATLAB. 
+9.	Repeat.
