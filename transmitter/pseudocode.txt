@@ -1,0 +1,27 @@
+Algorithm: ESP32 Transmitter Telemetry Packet Generation and Transmission
+
+1.	Configure serial communication. 
+2.	Initialize the I²C interface. 
+3.	Initialize the LoRa transceiver. 
+4.	Initialize the BMP280, TMP102, and ADXL345 sensors. 
+5.	Configure the ADXL345 measurement range. 
+6.	Continuously repeat the following steps:
+    a.	Acquire pressure from the BMP280.
+    b.	Acquire temperature from the TMP102.
+    c.	Acquire acceleration along the X-, Y-, and Z-axes from the ADXL345.
+    d.	Generate the telemetry payload string.
+    e.	Construct the CCSDS-inspired primary header by assigning: 
+        i.	Version
+        ii.	Packet Type
+        iii.	Secondary Header Flag
+        iv.	Reserved bits
+        v.	APID
+        vi.	Sequence Counter
+        vii.	Payload Length
+f.	Append the telemetry payload to the CCSDS frame.
+g.	Compute the CRC-16-CCITT checksum (Polynomial 0x1021, Initial Value 0xFFFF)
+h.	Append the CRC to the CCSDS frame.
+i.	Transmit the complete CCSDS frame using the LoRa transceiver.
+j.	Display the transmitted frame and payload through the serial interface.
+k.	Increment the packet sequence counter.
+l.	Wait for 2 s.
