@@ -1,112 +1,176 @@
-%MATLAB CODE
-
 clc;
 clear;
+
 %% -------------------------------------------------
 % Serial Port Configuration
 %% -------------------------------------------------
+
 port = "COM5";          % Change as required
 baud = 115200;
+
 s = serialport(port, baud);
 flush(s);
+
 disp("==============================================");
 disp(" MATLAB LoRa Ground Station ");
 disp("==============================================");
 disp("Waiting for packets...");
 disp(" ");
+
 START_BYTE = hex2dec('AA');
 END_BYTE   = hex2dec('55');
+
+%% -------------------------------------------------
+% CSV File Configuration
+%% -------------------------------------------------
+
+csvFile = "telemetry_log.csv";
+
+% Create CSV file with header if it doesn't exist
+if ~isfile(csvFile)
+
+    fid = fopen(csvFile,'w');
+
+    fprintf(fid,...
+        'Timestamp,PacketNumber,Version,APID,PayloadLength,Pressure_hPa,Temperature_C,AccelX_mps2,AccelY_mps2,AccelZ_mps2,RSSI_dBm,SNR_dB\n');
+
+    fclose(fid);
+
+    disp("CSV file created: " + csvFile);
+
+end
+
+%% -------------------------------------------------
+% Main Loop
+%% -------------------------------------------------
+
 while true
+
     %% --------------------------------------------
     % Wait for Start Byte
     %% --------------------------------------------
+
     start = read(s,1,"uint8");
+
     if start ~= START_BYTE
         continue;
     end
+
     %% --------------------------------------------
     % Read Frame Length
     %% --------------------------------------------
+
     frameLength = read(s,1,"uint8");
+
     %% --------------------------------------------
     % Read Complete CCSDS Frame
     %% --------------------------------------------
+
     frame = read(s,frameLength,"uint8");
+
     %% --------------------------------------------
     % Read RSSI
     %% --------------------------------------------
+
     rssiBytes = read(s,2,"uint8");
     RSSI = typecast(uint8(rssiBytes),'int16');
+
     %% --------------------------------------------
     % Read SNR
     %% --------------------------------------------
+
     snrBytes = read(s,4,"uint8");
     SNR = typecast(uint8(snrBytes),'single');
+
     %% --------------------------------------------
     % Read End Marker
     %% --------------------------------------------
+
     stop = read(s,1,"uint8");
+
     if stop ~= END_BYTE
         disp("Frame Synchronization Error");
         continue;
     end
+
     %% --------------------------------------------
     % Minimum Frame Check
     %% --------------------------------------------
+
     if length(frame) < 8
         disp("Invalid Frame");
         continue;
     end
+
     %% --------------------------------------------
     % CCSDS Header
     %% --------------------------------------------
+
     version = bitshift(frame(1),-5);
+
     apid = frame(2);
+
     sequence = ...
         bitshift(uint16(frame(3)),8) + ...
         uint16(frame(4));
+
     payloadLength = ...
         bitshift(uint16(frame(5)),8) + ...
         uint16(frame(6)) + 1;
+
     expectedLength = 6 + payloadLength + 2;
+
     if length(frame) ~= expectedLength
         fprintf("Length Error\n");
         continue;
     end
+
     %% --------------------------------------------
     % CRC Verification
     %% --------------------------------------------
+
     receivedCRC = ...
         bitshift(uint16(frame(end-1)),8) + ...
         uint16(frame(end));
+
     calculatedCRC = crc16_ccsds(frame(1:end-2));
+
     if receivedCRC ~= calculatedCRC
         fprintf("CRC ERROR\n\n");
         continue;
     end
+
     %% --------------------------------------------
     % Payload
     %% --------------------------------------------
+
     payload = char(frame(7:6+payloadLength))';
+
     %% --------------------------------------------
     % Decode Payload
     %% --------------------------------------------
+
     tokens = regexp(payload,...
         'BMP_P=([-\d\.]+),TMP102_T=([-\d\.]+),AX=([-\d\.]+),AY=([-\d\.]+),AZ=([-\d\.]+)',...
         'tokens');
+
     if isempty(tokens)
         disp("Payload Decode Error");
         continue;
     end
+
     vals = str2double(tokens{1});
-    pressure = vals(1);
+
+    pressure    = vals(1);
     temperature = vals(2);
-    ax = vals(3);
-    ay = vals(4);
-    az = vals(5);
+    ax          = vals(3);
+    ay          = vals(4);
+    az          = vals(5);
+
     %% --------------------------------------------
     % Display Telemetry
     %% --------------------------------------------
+
     fprintf("\n=============================================\n");
     fprintf("Packet Number : %d\n",sequence);
     fprintf("Version       : %d\n",version);
@@ -122,22 +186,59 @@ while true
     fprintf("RSSI          : %d dBm\n",RSSI);
     fprintf("SNR           : %.2f dB\n",SNR);
     fprintf("=============================================\n");
+
+    %% --------------------------------------------
+    % Save Data to CSV
+    %% --------------------------------------------
+
+    timestamp = datetime('now','Format','yyyy-MM-dd HH:mm:ss');
+
+    fid = fopen(csvFile,'a');
+
+    fprintf(fid,...
+        '%s,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f\n',...
+        char(timestamp),...
+        sequence,...
+        version,...
+        apid,...
+        payloadLength,...
+        pressure,...
+        temperature,...
+        ax,...
+        ay,...
+        az,...
+        RSSI,...
+        SNR);
+
+    fclose(fid);
+
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % CCSDS CRC16 Function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function crc = crc16_ccsds(data)
+
 crc = uint16(hex2dec('FFFF'));
 poly = uint16(hex2dec('1021'));
+
 for i = 1:length(data)
-    crc = bitxor(crc, bitshift(uint16(data(i)),8));
+
+    crc = bitxor(crc,bitshift(uint16(data(i)),8));
+
     for j = 1:8
+
         if bitand(crc,uint16(hex2dec('8000')))
             crc = bitxor(bitshift(crc,1),poly);
         else
             crc = bitshift(crc,1);
         end
+
     end
+
 end
+
 crc = bitand(crc,uint16(65535));
+
 end
