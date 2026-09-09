@@ -134,7 +134,7 @@ void loop()
     uint8_t frame[256];
     uint16_t index = 0;
     // Primary Header
-    frame[index++] = 0x08;               // Version, Type, Secondary Header Flag
+    frame[index++] = 0x00;               // Version, Type, Secondary Header Flag
     frame[index++] = 0x01;               // APID
     frame[index++] = (packetCount >> 8) & 0xFF;
     frame[index++] = packetCount & 0xFF;
