@@ -1,3 +1,5 @@
+#include <WiFi.h>
+#include <ThingSpeak.h>
 #include <Wire.h>
 #include <LoRa.h>
 #include <Adafruit_BMP280.h>
@@ -15,6 +17,19 @@ Adafruit_BMP280 bmp;
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 #define TMP102_ADDR 0x48
 uint16_t packetCount = 0;
+// ----------------------------------------------------
+// WiFi Credentials
+// ----------------------------------------------------
+const char* ssid = "YOUR_WIFI_NAME";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// ----------------------------------------------------
+// ThingSpeak
+// ----------------------------------------------------
+unsigned long channelNumber = YOUR_CHANNEL_NUMBER;
+const char *writeAPIKey = "YOUR_WRITE_API_KEY";
+
+WiFiClient client;
 // ----------------------------------------------------
 // CCSDS CRC16 (Polynomial 0x1021)
 // ----------------------------------------------------
@@ -59,6 +74,25 @@ void setup()
 {
     Serial.begin(115200);
     Wire.begin();
+// ----------------------------------------------------
+// Connect to WiFi
+// ----------------------------------------------------
+Serial.print("Connecting to WiFi");
+
+WiFi.begin(ssid, password);
+
+while (WiFi.status() != WL_CONNECTED)
+{
+    delay(500);
+    Serial.print(".");
+}
+
+Serial.println();
+Serial.println("WiFi Connected");
+Serial.print("IP Address: ");
+Serial.println(WiFi.localIP());
+
+ThingSpeak.begin(client);
 
 // LoRa Initialization
 LoRa.setPins(SS, RST, DIO0);
@@ -119,6 +153,26 @@ void loop()
     float ax = event.acceleration.x;
     float ay = event.acceleration.y;
     float az = event.acceleration.z;
+    // ----------------------------------------------------
+    // Upload Data to ThingSpeak
+    // ----------------------------------------------------
+    ThingSpeak.setField(1, bmpPressure);
+    ThingSpeak.setField(2, tmp102Temp);
+    ThingSpeak.setField(3, ax);
+    ThingSpeak.setField(4, ay);
+    ThingSpeak.setField(5, az);
+
+    int status = ThingSpeak.writeFields(channelNumber, writeAPIKey);
+
+    if(status == 200)
+    {
+        Serial.println("ThingSpeak Upload Successful");
+    }
+    else
+    {
+        Serial.print("ThingSpeak Upload Failed. Error: ");
+        Serial.println(status);
+    }
     // ----------------------------
     // Create Telemetry Payload
     // ----------------------------
